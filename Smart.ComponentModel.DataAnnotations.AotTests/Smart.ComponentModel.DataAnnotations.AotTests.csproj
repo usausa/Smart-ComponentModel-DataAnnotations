@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Smart.ComponentModel.DataAnnotations.AotTests</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Smart.ComponentModel.DataAnnotations.Generator\Smart.ComponentModel.DataAnnotations.Generator.csproj" OutputItemType="analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Smart.ComponentModel.DataAnnotations\Smart.ComponentModel.DataAnnotations.csproj" />
+    <ProjectReference Include="..\Smart.ComponentModel.DataAnnotations.Japanese\Smart.ComponentModel.DataAnnotations.Japanese.csproj" />
+  </ItemGroup>
+
+</Project>

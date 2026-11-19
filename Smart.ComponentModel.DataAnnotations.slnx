@@ -1,4 +1,14 @@
 <Solution>
+  <Folder Name="/Example/">
+    <Project Path="Develop/Develop.csproj" />
+  </Folder>
+  <Folder Name="/Library/">
+    <Project Path="Smart.ComponentModel.DataAnnotations.Generator/Smart.ComponentModel.DataAnnotations.Generator.csproj" />
+    <Project Path="Smart.ComponentModel.DataAnnotations.Japanese/Smart.ComponentModel.DataAnnotations.Japanese.csproj" />
+    <Project Path="Smart.ComponentModel.DataAnnotations/Smart.ComponentModel.DataAnnotations.csproj">
+      <BuildDependency Project="Smart.ComponentModel.DataAnnotations.Generator/Smart.ComponentModel.DataAnnotations.Generator.csproj" />
+    </Project>
+  </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".editorconfig" />
     <File Path=".gitattributes" />
@@ -12,5 +22,9 @@
     <File Path="LICENSE" />
     <File Path="README.md" />
     <File Path="Smart.ComponentModel.DataAnnotations.sln.DotSettings" />
+  </Folder>
+  <Folder Name="/Test/">
+    <Project Path="Smart.ComponentModel.DataAnnotations.AotTests/Smart.ComponentModel.DataAnnotations.AotTests.csproj" />
+    <Project Path="Smart.ComponentModel.DataAnnotations.Tests/Smart.ComponentModel.DataAnnotations.Tests.csproj" />
   </Folder>
 </Solution>

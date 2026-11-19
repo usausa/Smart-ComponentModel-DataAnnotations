@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net11.0;net10.0</TargetFrameworks>
+    <IsAotCompatible>true</IsAotCompatible>
+    <RootNamespace>Smart</RootNamespace>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>Usa.Smart.ComponentModel.DataAnnotations.Japanese</PackageId>
+    <Title>Smart.ComponentModel.DataAnnotations.Japanese</Title>
+    <Description>Smart data annotations japanese library</Description>
+    <PackageTags>smart dataannotations validation japanese</PackageTags>
+  </PropertyGroup>
+
+</Project>
