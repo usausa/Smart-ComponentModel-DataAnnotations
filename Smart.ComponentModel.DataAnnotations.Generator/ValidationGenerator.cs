@@ -14,17 +14,11 @@ using SourceGenerateHelper;
 public sealed class ValidationGenerator : IIncrementalGenerator
 {
     private const string AttributeNamespace = "Smart.ComponentModel.DataAnnotations.";
-
     private const string RegistryName = "global::Smart.ComponentModel.DataAnnotations.Internal.ValidationRegistry";
-
     private const string DisplayAttributeName = "System.ComponentModel.DataAnnotations.DisplayAttribute";
-
     private const string DisplayNameAttributeName = "System.ComponentModel.DisplayNameAttribute";
-
     private const string ComparableName = "System.IComparable";
-
     private const string GenericComparableName = "System.IComparable`1";
-
     private const string SourceName = "ValidationRegistration.g.cs";
 
     private static readonly AttributeKind[] Kinds =
