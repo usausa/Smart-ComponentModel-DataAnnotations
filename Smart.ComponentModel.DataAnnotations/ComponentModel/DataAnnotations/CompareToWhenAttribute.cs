@@ -6,13 +6,17 @@ using System.Globalization;
 using Smart.ComponentModel.DataAnnotations.Internal;
 
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
-public sealed class CompareToWhenAttribute : ConditionalValidationAttribute
+public sealed class CompareToWhenAttribute : ConditionalValidationAttribute, IMemberMessageFormatter
 {
-    private string? otherDisplayName;
+    private Func<string>? otherDisplayName;
 
     public CompareToOperation Operation { get; }
 
     public string OtherProperty { get; }
+
+    bool IMemberMessageFormatter.AppliesToType => false;
+
+    IReadOnlyList<string> IMemberMessageFormatter.MessageMembers => [OtherProperty];
 
     public CompareToWhenAttribute(string conditionProperty, CompareToOperation operation, string otherProperty)
         : base(conditionProperty, () => operation.ResolveMessage())
@@ -29,6 +33,9 @@ public sealed class CompareToWhenAttribute : ConditionalValidationAttribute
         Format(ErrorMessageString, name);
 #endif
 
+    string IMemberMessageFormatter.FormatMessage(string? format, string name, IReadOnlyList<string> memberDisplayNames) =>
+        String.Format(CultureInfo.CurrentCulture, format ?? ErrorMessageString, name, memberDisplayNames[0]);
+
     protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
     {
         var instance = validationContext.ObjectInstance;
@@ -38,8 +45,8 @@ public sealed class CompareToWhenAttribute : ConditionalValidationAttribute
         }
 
         var type = instance.GetType();
-        if ((ValidationRegistry.GetComparison(type, validationContext.GetMemberName(), OtherProperty)(instance) is not { } compare) ||
-            Operation.IsValid(compare))
+        var other = ValidationRegistry.GetMember(type, OtherProperty)(instance);
+        if ((value is null) || (other is null) || Operation.IsValid(ValidationRegistry.GetComparer(value.GetType())(value, other)))
         {
             return ValidationResult.Success;
         }
@@ -49,5 +56,5 @@ public sealed class CompareToWhenAttribute : ConditionalValidationAttribute
     }
 
     private string Format(string format, string name) =>
-        String.Format(CultureInfo.CurrentCulture, format, name, otherDisplayName ?? OtherProperty);
+        String.Format(CultureInfo.CurrentCulture, format, name, otherDisplayName?.Invoke() ?? OtherProperty);
 }

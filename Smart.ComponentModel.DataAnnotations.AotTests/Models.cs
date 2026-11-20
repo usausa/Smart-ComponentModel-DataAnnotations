@@ -12,6 +12,14 @@ internal sealed class Form
     [Display(Name = "Mail address")]
     public string? Mail { get; set; }
 
+    [EqualTo(nameof(Mail))]
+    public string? ConfirmMail { get; set; }
+
+    public Level Minimum { get; set; }
+
+    [CompareTo(CompareToOperation.GreaterThanOrEqual, nameof(Minimum))]
+    public Level? Maximum { get; set; }
+
     [Display(Name = "Start")]
     [RequiredWhen(nameof(UsePeriod))]
     public DateOnly? From { get; set; }
@@ -33,4 +41,9 @@ internal sealed class Entry
     public string? Code { get; set; }
 
     public int Branch { get; set; }
+}
+
+internal readonly record struct Level(int Value) : IComparable<Level>
+{
+    public int CompareTo(Level other) => Value.CompareTo(other.Value);
 }

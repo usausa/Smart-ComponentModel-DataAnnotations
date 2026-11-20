@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFrameworks>net11.0;net10.0</TargetFrameworks>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>Usa.Smart.ComponentModel.DataAnnotations.AspNetCore</PackageId>
+    <Title>Smart.ComponentModel.DataAnnotations.AspNetCore</Title>
+    <Description>Smart data annotations ASP.NET Core MVC library</Description>
+    <PackageTags>smart dataannotations validation aspnetcore mvc</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Smart.ComponentModel.DataAnnotations\Smart.ComponentModel.DataAnnotations.csproj" />
+    <ProjectReference Include="..\Smart.ComponentModel.DataAnnotations.Japanese\Smart.ComponentModel.DataAnnotations.Japanese.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -149,7 +149,7 @@ public sealed class DuplicateKeyAttributeTests
     public void UnregisteredKeysThrow()
     {
         // Arrange
-        var attribute = new DuplicateKeyAttribute(nameof(DuplicateKeyEntry.Branch));
+        var attribute = new DuplicateKeyAttribute("Unknown");
         var model = new DuplicateKeyModel { Entries = [new DuplicateKeyEntry { Code = "A" }] };
 
         // Act

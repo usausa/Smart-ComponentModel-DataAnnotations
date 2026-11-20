@@ -24,9 +24,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Smart.ComponentModel.DataAnnotations.Generator\Smart.ComponentModel.DataAnnotations.Generator.csproj" OutputItemType="analyzer" ReferenceOutputAssembly="false" />
     <ProjectReference Include="..\Smart.ComponentModel.DataAnnotations.Generator\Smart.ComponentModel.DataAnnotations.Generator.csproj" ReferenceOutputAssembly="true" />
     <ProjectReference Include="..\Smart.ComponentModel.DataAnnotations\Smart.ComponentModel.DataAnnotations.csproj" />
+    <ProjectReference Include="..\Smart.ComponentModel.DataAnnotations.AspNetCore\Smart.ComponentModel.DataAnnotations.AspNetCore.csproj" />
     <ProjectReference Include="..\Smart.ComponentModel.DataAnnotations.Japanese\Smart.ComponentModel.DataAnnotations.Japanese.csproj" />
   </ItemGroup>
 

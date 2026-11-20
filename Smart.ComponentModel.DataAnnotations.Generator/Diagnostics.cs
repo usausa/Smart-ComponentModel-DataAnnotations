@@ -45,7 +45,7 @@ internal static class Diagnostics
     public static DiagnosticDescriptor UnsupportedType { get; } = new(
         id: "SCD0005",
         title: "Unsupported type",
-        messageFormat: "[{0}] type must be non-generic and accessible from the assembly. type=[{1}]",
+        messageFormat: "[{0}] type must be a non-generic class or struct accessible from the assembly. type=[{1}]",
         category: "Usage",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,
@@ -72,6 +72,15 @@ internal static class Diagnostics
         id: "SCD0008",
         title: "Unsupported target",
         messageFormat: "[{0}] must be applied to a property or a record primary constructor parameter. target=[{1}]",
+        category: "Usage",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        customTags: DiagnosticTags.NotSuppressible);
+
+    public static DiagnosticDescriptor NotSameType { get; } = new(
+        id: "SCD0009",
+        title: "Members are not the same type",
+        messageFormat: "[{0}] members must be the same type. type=[{1}], member=[{2}], other=[{3}]",
         category: "Usage",
         defaultSeverity: DiagnosticSeverity.Error,
         isEnabledByDefault: true,

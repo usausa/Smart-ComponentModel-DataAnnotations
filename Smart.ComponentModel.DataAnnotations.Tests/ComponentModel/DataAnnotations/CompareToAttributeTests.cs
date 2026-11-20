@@ -1,5 +1,7 @@
 namespace Smart.ComponentModel.DataAnnotations;
 
+using System.Globalization;
+
 public sealed class CompareToModel
 {
     public int Minimum { get; set; }
@@ -70,6 +72,33 @@ internal struct CompareToStruct
 
     [CompareTo(CompareToOperation.LessThan, nameof(Minimum))]
     public long Maximum { get; set; }
+}
+
+internal readonly record struct CompareToLevel(int Value) : IComparable<CompareToLevel>
+{
+    public int CompareTo(CompareToLevel other) => Value.CompareTo(other.Value);
+}
+
+internal sealed class CompareToLevelModel
+{
+    public CompareToLevel Minimum { get; set; }
+
+    [CompareTo(CompareToOperation.GreaterThanOrEqual, nameof(Minimum))]
+    public CompareToLevel? Maximum { get; set; }
+}
+
+public static class CompareToCultureResources
+{
+    public static string Minimum => CultureInfo.CurrentUICulture.Name == "ja-JP" ? "下限" : "Lower limit";
+}
+
+internal sealed class CompareToCultureModel
+{
+    [Display(Name = nameof(CompareToCultureResources.Minimum), ResourceType = typeof(CompareToCultureResources))]
+    public int Minimum { get; set; }
+
+    [CompareTo(CompareToOperation.GreaterThanOrEqual, nameof(Minimum))]
+    public int Maximum { get; set; }
 }
 
 public sealed class CompareToAttributeTests
@@ -242,5 +271,46 @@ public sealed class CompareToAttributeTests
 
         // Assert
         Assert.IsType<InvalidOperationException>(exception);
+    }
+
+    [Fact]
+    public void GenericComparableTypeIsCompared()
+    {
+        // Arrange
+        var valid = new CompareToLevelModel { Minimum = new CompareToLevel(1), Maximum = new CompareToLevel(2) };
+        var invalid = new CompareToLevelModel { Minimum = new CompareToLevel(2), Maximum = new CompareToLevel(1) };
+
+        // Act
+        var validResults = ValidationTestHelper.Validate(valid);
+        var invalidResults = ValidationTestHelper.Validate(invalid);
+
+        // Assert
+        Assert.Empty(validResults);
+        Assert.Single(invalidResults);
+    }
+
+    [Fact]
+    public void DisplayNameFollowsCulture()
+    {
+        // Arrange
+        var model = new CompareToCultureModel { Minimum = 5, Maximum = 3 };
+        var culture = CultureInfo.CurrentUICulture;
+
+        try
+        {
+            // Act
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("ja-JP");
+            var japanese = ValidationTestHelper.Validate(model);
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("en-US");
+            var english = ValidationTestHelper.Validate(model);
+
+            // Assert
+            Assert.Equal("The field Maximum must be greater than or equal to 下限.", Assert.Single(japanese).ErrorMessage);
+            Assert.Equal("The field Maximum must be greater than or equal to Lower limit.", Assert.Single(english).ErrorMessage);
+        }
+        finally
+        {
+            CultureInfo.CurrentUICulture = culture;
+        }
     }
 }

@@ -81,7 +81,27 @@ Console.WriteLine("Smart.ComponentModel.DataAnnotations AOT smoke tests starting
 }
 
 //--------------------------------------------------------------------------------
-// 5. Japanese
+// 5. EqualTo / IComparable<T>
+//--------------------------------------------------------------------------------
+{
+    var form = new Form { Mail = "a@example.com", ConfirmMail = "b@example.com", Minimum = new Level(2), Maximum = new Level(1) };
+    var equal = new EqualToAttribute(nameof(Form.Mail));
+    var compare = new CompareToAttribute(CompareToOperation.GreaterThanOrEqual, nameof(Form.Minimum));
+
+    var invalid = Validate(equal, form, nameof(Form.ConfirmMail), form.ConfirmMail);
+    Assert(invalid is not null, "EqualTo invalid");
+    Assert(invalid!.ErrorMessage == "The field ConfirmMail must match Mail address.", $"EqualTo message: {invalid.ErrorMessage}");
+    Assert(Validate(compare, form, nameof(Form.Maximum), form.Maximum) is not null, "CompareTo generic comparable invalid");
+
+    form.ConfirmMail = form.Mail;
+    form.Maximum = new Level(3);
+    Assert(Validate(equal, form, nameof(Form.ConfirmMail), form.ConfirmMail) is null, "EqualTo valid");
+    Assert(Validate(compare, form, nameof(Form.Maximum), form.Maximum) is null, "CompareTo generic comparable valid");
+    Console.WriteLine("  [OK] EqualTo / IComparable<T>");
+}
+
+//--------------------------------------------------------------------------------
+// 6. Japanese
 //--------------------------------------------------------------------------------
 {
     Assert(new Ms932MaxLengthAttribute(4).IsValid("あい"), "Ms932MaxLength valid");

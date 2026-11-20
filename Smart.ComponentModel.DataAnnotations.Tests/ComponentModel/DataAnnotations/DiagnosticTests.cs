@@ -339,4 +339,175 @@ public sealed class DiagnosticTests
         // Assert
         Assert.Equal(["SCD0008"], diagnostics);
     }
+
+    [Fact]
+    public void Scd0001UnknownEqualToMemberEmitsDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using Smart.ComponentModel.DataAnnotations;
+
+            namespace Test;
+
+            public sealed class Form
+            {
+                [EqualTo("Unknown")]
+                public string? Confirm { get; set; }
+            }
+            """;
+
+        // Act
+        var diagnostics = GeneratorTestHelper.GetDiagnosticIds(source);
+
+        // Assert
+        Assert.Equal(["SCD0001"], diagnostics);
+    }
+
+    [Fact]
+    public void Scd0003InterfaceTypeEmitsDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using System;
+
+            using Smart.ComponentModel.DataAnnotations;
+
+            namespace Test;
+
+            public interface ILevel : IComparable<ILevel>
+            {
+            }
+
+            public sealed class Form
+            {
+                public ILevel? Minimum { get; set; }
+
+                [CompareTo(CompareToOperation.GreaterThan, nameof(Minimum))]
+                public ILevel? Maximum { get; set; }
+            }
+            """;
+
+        // Act
+        var diagnostics = GeneratorTestHelper.GetDiagnosticIds(source);
+
+        // Assert
+        Assert.Equal(["SCD0003"], diagnostics);
+    }
+
+    [Fact]
+    public void Scd0005InterfaceContainerEmitsDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using Smart.ComponentModel.DataAnnotations;
+
+            namespace Test;
+
+            public interface IForm
+            {
+                bool Enabled { get; }
+
+                [RequiredWhen(nameof(Enabled))]
+                string? Name { get; }
+            }
+            """;
+
+        // Act
+        var diagnostics = GeneratorTestHelper.GetDiagnosticIds(source);
+
+        // Assert
+        Assert.Equal(["SCD0005"], diagnostics);
+    }
+
+    [Fact]
+    public void Scd0005InterfaceElementTypeEmitsDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using System.Collections.Generic;
+
+            using Smart.ComponentModel.DataAnnotations;
+
+            namespace Test;
+
+            public interface IEntry
+            {
+                string? Code { get; }
+            }
+
+            public sealed class Form
+            {
+                [DuplicateKey(nameof(IEntry.Code))]
+                public List<IEntry>? Entries { get; set; }
+            }
+            """;
+
+        // Act
+        var diagnostics = GeneratorTestHelper.GetDiagnosticIds(source);
+
+        // Assert
+        Assert.Equal(["SCD0005"], diagnostics);
+    }
+
+    [Fact]
+    public void Scd0005RefStructMemberEmitsDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using System;
+            using System.Collections.Generic;
+
+            using Smart.ComponentModel.DataAnnotations;
+
+            namespace Test;
+
+            public sealed class Entry
+            {
+                public Span<int> Code => default;
+            }
+
+            public sealed class Form
+            {
+                [DuplicateKey(nameof(Entry.Code))]
+                public List<Entry>? Entries { get; set; }
+            }
+            """;
+
+        // Act
+        var diagnostics = GeneratorTestHelper.GetDiagnosticIds(source);
+
+        // Assert
+        Assert.Equal(["SCD0005"], diagnostics);
+    }
+
+    [Fact]
+    public void Scd0009DifferentEqualToTypesEmitDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using Smart.ComponentModel.DataAnnotations;
+
+            namespace Test;
+
+            public sealed class Form
+            {
+                public long Code { get; set; }
+
+                [EqualTo(nameof(Code))]
+                public int? Confirm { get; set; }
+            }
+            """;
+
+        // Act
+        var diagnostics = GeneratorTestHelper.GetDiagnosticIds(source);
+
+        // Assert
+        Assert.Equal(["SCD0009"], diagnostics);
+    }
 }

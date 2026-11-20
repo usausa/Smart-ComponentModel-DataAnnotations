@@ -31,6 +31,7 @@ public sealed class ValidationGenerator : IIncrementalGenerator
     [
         AttributeKind.CompareTo,
         AttributeKind.CompareToWhen,
+        AttributeKind.EqualTo,
         AttributeKind.RequiredWhen,
         AttributeKind.EmptyWhen,
         AttributeKind.AnyRequired,
@@ -43,6 +44,7 @@ public sealed class ValidationGenerator : IIncrementalGenerator
     {
         CompareTo,
         CompareToWhen,
+        EqualTo,
         RequiredWhen,
         EmptyWhen,
         AnyRequired,
@@ -148,23 +150,26 @@ public sealed class ValidationGenerator : IIncrementalGenerator
         switch (kind)
         {
             case AttributeKind.CompareTo:
-                AddComparison(builder, location, attributeName, type, property.Name, ReadString(attribute, 1));
+                AddComparison(builder, location, attributeName, type, property, ReadString(attribute, 1));
                 break;
             case AttributeKind.CompareToWhen:
                 AddCondition(builder, location, attributeName, type, ReadString(attribute, 0));
-                AddComparison(builder, location, attributeName, type, property.Name, ReadString(attribute, 2));
+                AddComparison(builder, location, attributeName, type, property, ReadString(attribute, 2));
+                break;
+            case AttributeKind.EqualTo:
+                AddEquality(builder, location, attributeName, type, property, ReadString(attribute, 0));
                 break;
             case AttributeKind.RequiredWhen:
             case AttributeKind.EmptyWhen:
                 AddCondition(builder, location, attributeName, type, ReadString(attribute, 0));
-                if (GetKind(property.Type) == ValueKind.Value)
+                if (IsAlwaysPresent(property.Type))
                 {
                     builder.Diagnostics.Add(new DiagnosticInfo(Diagnostics.ValueAlwaysPresent, location, attributeName, type.ToDisplayString(), property.Name));
                 }
 
                 break;
             case AttributeKind.DuplicateKey:
-                AddDuplicate(builder, location, attributeName, type, property.Name, ReadStrings(attribute, 0));
+                AddDuplicate(builder, location, attributeName, type, property, ReadStrings(attribute, 0));
                 break;
         }
     }
@@ -198,7 +203,6 @@ public sealed class ValidationGenerator : IIncrementalGenerator
             return;
         }
 
-        var typeName = GetTypeName(type);
         foreach (var name in properties)
         {
             var property = String.IsNullOrEmpty(name) ? null : FindProperty(type, name!);
@@ -208,14 +212,13 @@ public sealed class ValidationGenerator : IIncrementalGenerator
                 continue;
             }
 
-            var valueKind = GetKind(property.Type);
-            if (valueKind == ValueKind.Value)
+            if (IsAlwaysPresent(property.Type))
             {
                 builder.Diagnostics.Add(new DiagnosticInfo(Diagnostics.ValueAlwaysPresent, location, attributeName, type.ToDisplayString(), property.Name));
             }
 
-            builder.Presences.Add(new PresenceModel(typeName, property.Name, valueKind));
-            AddDisplayName(builder, typeName, property);
+            AddMember(builder, location, attributeName, type, property);
+            AddDisplayName(builder, type, property);
         }
     }
 
@@ -240,45 +243,49 @@ public sealed class ValidationGenerator : IIncrementalGenerator
             return;
         }
 
-        builder.Conditions.Add(new ConditionModel(GetTypeName(type), property.Name));
+        AddMember(builder, location, attributeName, type, property);
     }
 
-    private static void AddComparison(RegistrationBuilder builder, Location location, string attributeName, INamedTypeSymbol type, string memberName, string? otherName)
+    private static void AddComparison(RegistrationBuilder builder, Location location, string attributeName, INamedTypeSymbol type, IPropertySymbol property, string? otherName)
     {
-        if (String.IsNullOrEmpty(otherName))
+        if (FindOther(builder, location, attributeName, type, otherName) is not { } other)
         {
-            builder.Diagnostics.Add(new DiagnosticInfo(Diagnostics.InvalidArgument, location, attributeName, "otherProperty"));
             return;
         }
 
-        var member = FindProperty(type, memberName);
-        if (member is null)
+        var comparedType = GetUnderlyingType(property.Type);
+        if (!SymbolEqualityComparer.Default.Equals(comparedType, GetUnderlyingType(other.Type)) ||
+            (comparedType.TypeKind == TypeKind.Interface) ||
+            !IsComparable(comparedType) ||
+            !IsAccessibleType(comparedType))
         {
-            builder.Diagnostics.Add(new DiagnosticInfo(Diagnostics.MemberNotFound, location, attributeName, type.ToDisplayString(), memberName));
+            builder.Diagnostics.Add(new DiagnosticInfo(Diagnostics.NotComparable, location, attributeName, type.ToDisplayString(), property.Name, other.Name));
             return;
         }
 
-        var other = FindProperty(type, otherName!);
-        if (other is null)
-        {
-            builder.Diagnostics.Add(new DiagnosticInfo(Diagnostics.MemberNotFound, location, attributeName, type.ToDisplayString(), otherName!));
-            return;
-        }
-
-        var memberType = GetUnderlyingType(member.Type);
-        var otherType = GetUnderlyingType(other.Type);
-        if (!SymbolEqualityComparer.Default.Equals(memberType, otherType) || !IsComparable(memberType) || !IsAccessibleType(memberType))
-        {
-            builder.Diagnostics.Add(new DiagnosticInfo(Diagnostics.NotComparable, location, attributeName, type.ToDisplayString(), member.Name, other.Name));
-            return;
-        }
-
-        var typeName = GetTypeName(type);
-        builder.Comparisons.Add(new ComparisonModel(typeName, member.Name, GetKind(member.Type), other.Name, GetKind(other.Type), GetTypeName(memberType)));
-        AddDisplayName(builder, typeName, other);
+        AddMember(builder, location, attributeName, type, other);
+        AddDisplayName(builder, type, other);
+        builder.Comparers.Add(new ComparerModel(GetTypeName(comparedType)));
     }
 
-    private static void AddDuplicate(RegistrationBuilder builder, Location location, string attributeName, INamedTypeSymbol type, string memberName, List<string?>? members)
+    private static void AddEquality(RegistrationBuilder builder, Location location, string attributeName, INamedTypeSymbol type, IPropertySymbol property, string? otherName)
+    {
+        if (FindOther(builder, location, attributeName, type, otherName) is not { } other)
+        {
+            return;
+        }
+
+        if (!SymbolEqualityComparer.Default.Equals(GetUnderlyingType(property.Type), GetUnderlyingType(other.Type)))
+        {
+            builder.Diagnostics.Add(new DiagnosticInfo(Diagnostics.NotSameType, location, attributeName, type.ToDisplayString(), property.Name, other.Name));
+            return;
+        }
+
+        AddMember(builder, location, attributeName, type, other);
+        AddDisplayName(builder, type, other);
+    }
+
+    private static void AddDuplicate(RegistrationBuilder builder, Location location, string attributeName, INamedTypeSymbol type, IPropertySymbol property, List<string?>? members)
     {
         if ((members is null) || (members.Count == 0) || members.Any(static x => String.IsNullOrEmpty(x)))
         {
@@ -286,27 +293,19 @@ public sealed class ValidationGenerator : IIncrementalGenerator
             return;
         }
 
-        var collection = FindProperty(type, memberName);
-        if (collection is null)
+        if (FindElementType(property.Type) is not { } elementType)
         {
-            builder.Diagnostics.Add(new DiagnosticInfo(Diagnostics.MemberNotFound, location, attributeName, type.ToDisplayString(), memberName));
-            return;
-        }
-
-        if (FindElementType(collection.Type) is not { } elementType)
-        {
-            builder.Diagnostics.Add(new DiagnosticInfo(Diagnostics.NotCollection, location, attributeName, type.ToDisplayString(), collection.Name));
-            return;
-        }
-
-        if (!IsAccessibleType(elementType))
-        {
-            builder.Diagnostics.Add(new DiagnosticInfo(Diagnostics.UnsupportedType, location, attributeName, elementType.ToDisplayString()));
+            builder.Diagnostics.Add(new DiagnosticInfo(Diagnostics.NotCollection, location, attributeName, type.ToDisplayString(), property.Name));
             return;
         }
 
         var keyOwner = GetUnderlyingType(elementType);
-        var keys = new List<DuplicateKeyModel>();
+        if ((keyOwner.TypeKind == TypeKind.Interface) || !IsAccessibleType(keyOwner))
+        {
+            builder.Diagnostics.Add(new DiagnosticInfo(Diagnostics.UnsupportedType, location, attributeName, keyOwner.ToDisplayString()));
+            return;
+        }
+
         foreach (var name in members)
         {
             var key = FindProperty(keyOwner, name!);
@@ -316,33 +315,39 @@ public sealed class ValidationGenerator : IIncrementalGenerator
                 return;
             }
 
-            var itemType = members.Count == 1 ? FindElementType(key.Type) : null;
-            var keyType = GetUnderlyingType(itemType ?? key.Type);
-            if (!IsAccessibleType(keyType))
-            {
-                builder.Diagnostics.Add(new DiagnosticInfo(Diagnostics.UnsupportedType, location, attributeName, keyType.ToDisplayString()));
-                return;
-            }
-
-            keys.Add(new DuplicateKeyModel(
-                key.Name,
-                GetKind(key.Type),
-                GetTypeName(keyType),
-                itemType is null ? null : GetTypeName(itemType),
-                itemType is null ? ValueKind.Value : GetKind(itemType)));
+            AddMember(builder, location, attributeName, keyOwner, key);
         }
-
-        builder.Duplicates.Add(new DuplicateModel(
-            GetTypeName(type),
-            collection.Name,
-            String.Join(",", members),
-            GetKind(collection.Type),
-            GetTypeName(elementType),
-            GetKind(elementType),
-            new EquatableArray<DuplicateKeyModel>(keys)));
     }
 
-    private static void AddDisplayName(RegistrationBuilder builder, string typeName, IPropertySymbol property)
+    private static IPropertySymbol? FindOther(RegistrationBuilder builder, Location location, string attributeName, INamedTypeSymbol type, string? otherName)
+    {
+        if (String.IsNullOrEmpty(otherName))
+        {
+            builder.Diagnostics.Add(new DiagnosticInfo(Diagnostics.InvalidArgument, location, attributeName, "otherProperty"));
+            return null;
+        }
+
+        var other = FindProperty(type, otherName!);
+        if (other is null)
+        {
+            builder.Diagnostics.Add(new DiagnosticInfo(Diagnostics.MemberNotFound, location, attributeName, type.ToDisplayString(), otherName!));
+        }
+
+        return other;
+    }
+
+    private static void AddMember(RegistrationBuilder builder, Location location, string attributeName, ITypeSymbol type, IPropertySymbol property)
+    {
+        if (property.Type.IsRefLikeType || (property.Type.TypeKind is TypeKind.Pointer or TypeKind.FunctionPointer))
+        {
+            builder.Diagnostics.Add(new DiagnosticInfo(Diagnostics.UnsupportedType, location, attributeName, property.Type.ToDisplayString()));
+            return;
+        }
+
+        builder.Members.Add(new MemberModel(GetTypeName(type), property.Name));
+    }
+
+    private static void AddDisplayName(RegistrationBuilder builder, INamedTypeSymbol type, IPropertySymbol property)
     {
         foreach (var attribute in GetDisplayAttributes(property))
         {
@@ -354,7 +359,7 @@ public sealed class ValidationGenerator : IIncrementalGenerator
                     var resourceType = attribute.TryGetNamedArgument("ResourceType", out var resource) && (resource.Value is ITypeSymbol symbol)
                         ? GetTypeName(symbol)
                         : null;
-                    builder.DisplayNames.Add(new DisplayNameModel(typeName, property.Name, name, resourceType));
+                    builder.DisplayNames.Add(new DisplayNameModel(GetTypeName(type), property.Name, name, resourceType));
                     return;
                 }
             }
@@ -362,7 +367,7 @@ public sealed class ValidationGenerator : IIncrementalGenerator
             {
                 if (attribute.TryGetConstructorArgument<string>(0, out var name) && !String.IsNullOrEmpty(name))
                 {
-                    builder.DisplayNames.Add(new DisplayNameModel(typeName, property.Name, name, null));
+                    builder.DisplayNames.Add(new DisplayNameModel(GetTypeName(type), property.Name, name, null));
                     return;
                 }
             }
@@ -490,6 +495,11 @@ public sealed class ValidationGenerator : IIncrementalGenerator
 
     private static bool IsSupportedContainer(INamedTypeSymbol type)
     {
+        if (type.TypeKind == TypeKind.Interface)
+        {
+            return false;
+        }
+
         for (var current = type; current is not null; current = current.ContainingType)
         {
             if (!IsAccessible(current.DeclaredAccessibility) || (current.Arity > 0) || current.IsFileLocal || IsObsoleteError(current))
@@ -558,20 +568,8 @@ public sealed class ValidationGenerator : IIncrementalGenerator
         return false;
     }
 
-    private static ValueKind GetKind(ITypeSymbol type)
-    {
-        if (type.SpecialType == SpecialType.System_String)
-        {
-            return ValueKind.String;
-        }
-
-        if (type.IsValueType)
-        {
-            return IsNullableValue(type) ? ValueKind.NullableValue : ValueKind.Value;
-        }
-
-        return ValueKind.Reference;
-    }
+    private static bool IsAlwaysPresent(ITypeSymbol type) =>
+        type.IsValueType && !IsNullableValue(type);
 
     private static bool IsNullableValue(ITypeSymbol type) =>
         type is INamedTypeSymbol { OriginalDefinition.SpecialType: SpecialType.System_Nullable_T };
@@ -617,24 +615,13 @@ public sealed class ValidationGenerator : IIncrementalGenerator
     {
         var models = results.SelectValue().ToList();
         return new RegistrationModel(
-            new EquatableArray<ConditionModel>(models.SelectMany(static x => x.Conditions)
+            new EquatableArray<MemberModel>(models.SelectMany(static x => x.Members)
                 .Distinct()
                 .OrderBy(static x => x.TypeName, StringComparer.Ordinal)
                 .ThenBy(static x => x.Member, StringComparer.Ordinal)),
-            new EquatableArray<PresenceModel>(models.SelectMany(static x => x.Presences)
+            new EquatableArray<ComparerModel>(models.SelectMany(static x => x.Comparers)
                 .Distinct()
-                .OrderBy(static x => x.TypeName, StringComparer.Ordinal)
-                .ThenBy(static x => x.Member, StringComparer.Ordinal)),
-            new EquatableArray<ComparisonModel>(models.SelectMany(static x => x.Comparisons)
-                .Distinct()
-                .OrderBy(static x => x.TypeName, StringComparer.Ordinal)
-                .ThenBy(static x => x.Member, StringComparer.Ordinal)
-                .ThenBy(static x => x.Other, StringComparer.Ordinal)),
-            new EquatableArray<DuplicateModel>(models.SelectMany(static x => x.Duplicates)
-                .Distinct()
-                .OrderBy(static x => x.TypeName, StringComparer.Ordinal)
-                .ThenBy(static x => x.Member, StringComparer.Ordinal)
-                .ThenBy(static x => x.Keys, StringComparer.Ordinal)),
+                .OrderBy(static x => x.TypeName, StringComparer.Ordinal)),
             new EquatableArray<DisplayNameModel>(models.SelectMany(static x => x.DisplayNames)
                 .Distinct()
                 .OrderBy(static x => x.TypeName, StringComparer.Ordinal)
@@ -679,24 +666,14 @@ public sealed class ValidationGenerator : IIncrementalGenerator
             .NewLine();
         builder.BeginScope();
 
-        foreach (var condition in registration.Conditions)
+        foreach (var member in registration.Members)
         {
-            BuildCondition(builder, condition);
+            BuildMember(builder, member);
         }
 
-        foreach (var presence in registration.Presences)
+        foreach (var comparer in registration.Comparers)
         {
-            BuildPresence(builder, presence);
-        }
-
-        foreach (var comparison in registration.Comparisons)
-        {
-            BuildComparison(builder, comparison);
-        }
-
-        foreach (var duplicate in registration.Duplicates)
-        {
-            BuildDuplicate(builder, duplicate);
+            BuildComparer(builder, comparer);
         }
 
         foreach (var displayName in registration.DisplayNames)
@@ -708,156 +685,38 @@ public sealed class ValidationGenerator : IIncrementalGenerator
         builder.EndScope();
     }
 
-    private static void BuildCondition(SourceBuilder builder, ConditionModel condition)
+    private static void BuildMember(SourceBuilder builder, MemberModel member)
     {
         builder
             .Indent()
             .Append(RegistryName)
-            .Append(".RegisterCondition(typeof(")
-            .Append(condition.TypeName)
+            .Append(".RegisterMember(typeof(")
+            .Append(member.TypeName)
             .Append("), ")
-            .Append(CSharpLiteral.Format(condition.Member))
+            .Append(CSharpLiteral.Format(member.Member))
             .Append(", static x => ((")
-            .Append(condition.TypeName)
+            .Append(member.TypeName)
             .Append(")x).")
-            .Append(CSharpIdentifier.Escape(condition.Member))
+            .Append(CSharpIdentifier.Escape(member.Member))
             .Append(");")
             .NewLine();
     }
 
-    private static void BuildPresence(SourceBuilder builder, PresenceModel presence)
+    private static void BuildComparer(SourceBuilder builder, ComparerModel comparer)
     {
         builder
             .Indent()
             .Append(RegistryName)
-            .Append(".RegisterPresence(typeof(")
-            .Append(presence.TypeName)
-            .Append("), ")
-            .Append(CSharpLiteral.Format(presence.Member));
-
-        var access = $"(({presence.TypeName})x).{CSharpIdentifier.Escape(presence.Member)}";
-        switch (presence.Kind)
-        {
-            case ValueKind.String:
-                builder.Append(", static (x, allowEmptyStrings) =>").NewLine();
-                builder.BeginScope();
-                builder.Indent().Append("var value = ").Append(access).Append(';').NewLine();
-                builder.Indent().Append("return (value is not null) && (allowEmptyStrings || !global::System.String.IsNullOrWhiteSpace(value));").NewLine();
-                builder.IndentLevel--;
-                builder.Indent().Append("});").NewLine();
-                break;
-            case ValueKind.NullableValue:
-                builder.Append(", static (x, _) => ").Append(access).Append(".HasValue);").NewLine();
-                break;
-            case ValueKind.Reference:
-                builder.Append(", static (x, _) => ").Append(access).Append(" is not null);").NewLine();
-                break;
-            default:
-                builder.Append(", static (_, _) => true);").NewLine();
-                break;
-        }
-    }
-
-    private static void BuildComparison(SourceBuilder builder, ComparisonModel comparison)
-    {
-        builder
-            .Indent()
-            .Append(RegistryName)
-            .Append(".RegisterComparison(typeof(")
-            .Append(comparison.TypeName)
-            .Append("), ")
-            .Append(CSharpLiteral.Format(comparison.Member))
-            .Append(", ")
-            .Append(CSharpLiteral.Format(comparison.Other))
-            .Append(", static x =>")
+            .Append(".RegisterComparer(typeof(")
+            .Append(comparer.TypeName)
+            .Append("), static (x, y) => global::System.Collections.Generic.Comparer<")
+            .Append(comparer.TypeName)
+            .Append(">.Default.Compare((")
+            .Append(comparer.TypeName)
+            .Append(")x, (")
+            .Append(comparer.TypeName)
+            .Append(")y));")
             .NewLine();
-        builder.BeginScope();
-        builder.Indent().Append("var instance = (").Append(comparison.TypeName).Append(")x;").NewLine();
-        BuildRead(builder, "value", $"instance.{CSharpIdentifier.Escape(comparison.Member)}", comparison.MemberKind, "return null;");
-        BuildRead(builder, "other", $"instance.{CSharpIdentifier.Escape(comparison.Other)}", comparison.OtherKind, "return null;");
-        builder
-            .Indent()
-            .Append("return global::System.Collections.Generic.Comparer<")
-            .Append(comparison.ComparedTypeName)
-            .Append(">.Default.Compare(value, other);")
-            .NewLine();
-        builder.IndentLevel--;
-        builder.Indent().Append("});").NewLine();
-    }
-
-    private static void BuildDuplicate(SourceBuilder builder, DuplicateModel duplicate)
-    {
-        builder
-            .Indent()
-            .Append(RegistryName)
-            .Append(".RegisterDuplicate(typeof(")
-            .Append(duplicate.TypeName)
-            .Append("), ")
-            .Append(CSharpLiteral.Format(duplicate.Member))
-            .Append(", ")
-            .Append(CSharpLiteral.Format(duplicate.Keys))
-            .Append(", static x =>")
-            .NewLine();
-        builder.BeginScope();
-        BuildRead(builder, "values", $"(({duplicate.TypeName})x).{CSharpIdentifier.Escape(duplicate.Member)}", duplicate.CollectionKind, "return false;");
-
-        var keyType = duplicate.KeyMembers.Count == 1
-            ? duplicate.KeyMembers[0].KeyTypeName
-            : $"({String.Join(", ", duplicate.KeyMembers.Select(static x => x.KeyTypeName))})";
-        builder
-            .Indent()
-            .Append("var keys = new global::System.Collections.Generic.HashSet<")
-            .Append(keyType)
-            .Append(">();")
-            .NewLine();
-        builder
-            .Indent()
-            .Append("foreach (")
-            .Append(duplicate.ElementTypeName)
-            .Append(" item in values)")
-            .NewLine();
-        builder.BeginScope();
-        BuildRead(builder, "element", "item", duplicate.ElementKind, "continue;");
-
-        if (duplicate.KeyMembers.Count == 1)
-        {
-            var key = duplicate.KeyMembers[0];
-            if (key.ItemTypeName is not null)
-            {
-                BuildRead(builder, "items", $"element.{CSharpIdentifier.Escape(key.Member)}", key.Kind, "continue;");
-                builder
-                    .Indent()
-                    .Append("foreach (")
-                    .Append(key.ItemTypeName)
-                    .Append(" value in items)")
-                    .NewLine();
-                builder.BeginScope();
-                BuildRead(builder, "key", "value", key.ItemKind, "continue;");
-                BuildAdd(builder, "key");
-                builder.EndScope();
-            }
-            else
-            {
-                BuildRead(builder, "key", $"element.{CSharpIdentifier.Escape(key.Member)}", key.Kind, "continue;");
-                BuildAdd(builder, "key");
-            }
-        }
-        else
-        {
-            for (var i = 0; i < duplicate.KeyMembers.Count; i++)
-            {
-                var key = duplicate.KeyMembers[i];
-                BuildRead(builder, $"key{i}", $"element.{CSharpIdentifier.Escape(key.Member)}", key.Kind, "continue;");
-            }
-
-            BuildAdd(builder, $"({String.Join(", ", Enumerable.Range(0, duplicate.KeyMembers.Count).Select(static x => $"key{x}"))})");
-        }
-
-        builder.EndScope();
-        builder.NewLine();
-        builder.Indent().Append("return false;").NewLine();
-        builder.IndentLevel--;
-        builder.Indent().Append("});").NewLine();
     }
 
     private static void BuildDisplayName(SourceBuilder builder, DisplayNameModel displayName)
@@ -892,42 +751,15 @@ public sealed class ValidationGenerator : IIncrementalGenerator
         }
     }
 
-    private static void BuildRead(SourceBuilder builder, string name, string expression, ValueKind kind, string exit)
-    {
-        if (kind == ValueKind.Value)
-        {
-            builder.Indent().Append("var ").Append(name).Append(" = ").Append(expression).Append(';').NewLine();
-            return;
-        }
-
-        builder.Indent().Append("if (").Append(expression).Append(" is not { } ").Append(name).Append(')').NewLine();
-        builder.BeginScope();
-        builder.Indent().Append(exit).NewLine();
-        builder.EndScope();
-        builder.NewLine();
-    }
-
-    private static void BuildAdd(SourceBuilder builder, string key)
-    {
-        builder.Indent().Append("if (!keys.Add(").Append(key).Append("))").NewLine();
-        builder.BeginScope();
-        builder.Indent().Append("return true;").NewLine();
-        builder.EndScope();
-    }
-
     // ------------------------------------------------------------
     // Builder
     // ------------------------------------------------------------
 
     private sealed class RegistrationBuilder
     {
-        public List<ConditionModel> Conditions { get; } = [];
+        public List<MemberModel> Members { get; } = [];
 
-        public List<PresenceModel> Presences { get; } = [];
-
-        public List<ComparisonModel> Comparisons { get; } = [];
-
-        public List<DuplicateModel> Duplicates { get; } = [];
+        public List<ComparerModel> Comparers { get; } = [];
 
         public List<DisplayNameModel> DisplayNames { get; } = [];
 
@@ -937,10 +769,8 @@ public sealed class ValidationGenerator : IIncrementalGenerator
         {
             var result = new Result<RegistrationModel>(
                 new RegistrationModel(
-                    new EquatableArray<ConditionModel>(Conditions),
-                    new EquatableArray<PresenceModel>(Presences),
-                    new EquatableArray<ComparisonModel>(Comparisons),
-                    new EquatableArray<DuplicateModel>(Duplicates),
+                    new EquatableArray<MemberModel>(Members),
+                    new EquatableArray<ComparerModel>(Comparers),
                     new EquatableArray<DisplayNameModel>(DisplayNames)),
                 new EquatableArray<DiagnosticInfo>(Diagnostics));
             return result.HasErrors ? Results.Errors<RegistrationModel>(Diagnostics) : result;

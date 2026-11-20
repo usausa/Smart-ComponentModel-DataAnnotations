@@ -1,6 +1,7 @@
 namespace Smart.ComponentModel.DataAnnotations;
 
 using System.ComponentModel;
+using System.Globalization;
 
 [AnyRequired(nameof(Phone), nameof(Mail))]
 [AnyRequired(nameof(Code), nameof(Name))]
@@ -23,6 +24,20 @@ public sealed class AnyRequiredDisplayModel
 
     [DisplayName("Item count")]
     public int? Count { get; set; }
+}
+
+public static class AnyRequiredCultureResources
+{
+    public static string Phone => CultureInfo.CurrentUICulture.Name == "ja-JP" ? "電話番号" : "Phone number";
+}
+
+[AnyRequired(nameof(Phone), nameof(Mail))]
+public sealed class AnyRequiredCultureModel
+{
+    [Display(Name = nameof(AnyRequiredCultureResources.Phone), ResourceType = typeof(AnyRequiredCultureResources))]
+    public string? Phone { get; set; }
+
+    public string? Mail { get; set; }
 }
 
 public sealed class AnyRequiredAttributeTests
@@ -108,5 +123,30 @@ public sealed class AnyRequiredAttributeTests
 
         // Assert
         Assert.IsType<InvalidOperationException>(exception);
+    }
+
+    [Fact]
+    public void DisplayNamesFollowCulture()
+    {
+        // Arrange
+        var model = new AnyRequiredCultureModel();
+        var culture = CultureInfo.CurrentUICulture;
+
+        try
+        {
+            // Act
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("ja-JP");
+            var japanese = ValidationTestHelper.Validate(model);
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("en-US");
+            var english = ValidationTestHelper.Validate(model);
+
+            // Assert
+            Assert.Equal("At least one of the fields 電話番号, Mail is required.", Assert.Single(japanese).ErrorMessage);
+            Assert.Equal("At least one of the fields Phone number, Mail is required.", Assert.Single(english).ErrorMessage);
+        }
+        finally
+        {
+            CultureInfo.CurrentUICulture = culture;
+        }
     }
 }

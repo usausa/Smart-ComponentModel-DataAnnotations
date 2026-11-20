@@ -19,5 +19,5 @@ public abstract class ConditionalValidationAttribute : ValidationAttribute
     }
 
     protected bool IsConditionMet(object instance) =>
-        (ValidationRegistry.GetCondition(instance.GetType(), ConditionProperty)(instance) is { } condition) && (condition == ConditionValue);
+        (ValidationRegistry.GetMember(instance.GetType(), ConditionProperty)(instance) is bool condition) && (condition == ConditionValue);
 }

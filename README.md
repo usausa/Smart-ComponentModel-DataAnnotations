@@ -4,6 +4,7 @@
 |:-|:-|:-|
 | Usa.Smart.ComponentModel.DataAnnotations | [![NuGet](https://img.shields.io/nuget/v/Usa.Smart.ComponentModel.DataAnnotations.svg)](https://www.nuget.org/packages/Usa.Smart.ComponentModel.DataAnnotations) | Conditional, comparison and collection attributes |
 | Usa.Smart.ComponentModel.DataAnnotations.Japanese | [![NuGet](https://img.shields.io/nuget/v/Usa.Smart.ComponentModel.DataAnnotations.Japanese.svg)](https://www.nuget.org/packages/Usa.Smart.ComponentModel.DataAnnotations.Japanese) | Shift_JIS length and character type attributes |
+| Usa.Smart.ComponentModel.DataAnnotations.AspNetCore | [![NuGet](https://img.shields.io/nuget/v/Usa.Smart.ComponentModel.DataAnnotations.AspNetCore.svg)](https://www.nuget.org/packages/Usa.Smart.ComponentModel.DataAnnotations.AspNetCore) | ASP.NET Core MVC client validation and message localization |
 
 ## What is this?
 
@@ -37,7 +38,17 @@ public sealed class Range
     [CompareTo(CompareToOperation.GreaterThanOrEqual, nameof(Minimum))]
     public int Maximum { get; set; }
 }
+
+public sealed class Account
+{
+    public string? Password { get; set; }
+
+    [EqualTo(nameof(Password))]
+    public string? ConfirmPassword { get; set; }
+}
 ```
+
+`[EqualTo]` checks equality in the same way as the standard `[Compare]`, and works with Native AOT.
 
 ## Any required
 
@@ -92,7 +103,7 @@ public sealed class Customer
 
 ## Source generator
 
-Code for the attributes that read other members is generated from the attribute usages in the project that references the package directly.
+Functions that read the members referenced by the attributes, their display names, and the comparers for `[CompareTo]` are generated from the attribute usages in the project that references the package directly.
 The attributes are applied to properties or record primary constructor parameters, and the diagnostics are listed in [Diagnostics.md](Diagnostics.md).
 
 ## Localization
@@ -107,4 +118,29 @@ Default messages are English, and are localized by `IStringLocalizer` with the a
 
 ## ASP.NET Core MVC
 
-Work in progress.
+```csharp
+builder.Services.AddControllersWithViews()
+    .AddDataAnnotationsLocalization(static options => options.DataAnnotationLocalizerProvider = static (_, factory) => factory.Create(typeof(SharedResource)))
+    .AddDefaultMessageLocalization()
+    .AddValidationAttributeAdapters();
+```
+
+```html
+<script src="~/lib/jquery-validation/jquery.validate.min.js"></script>
+<script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
+<script src="~/_content/Usa.Smart.ComponentModel.DataAnnotations.AspNetCore/Smart.ComponentModel.DataAnnotations.AspNetCore.js"></script>
+```
+
+| Method | Description |
+|:-|:-|
+| `AddValidationAttributeAdapters()` | Outputs `data-val-*` for the attributes in this library |
+| `AddDefaultMessageLocalization()` | Localizes default messages with the keys above, and model binding messages with `{Name}_Error` keys such as `ValueMustBeANumber_Error` (.NET 11) |
+
+| Attribute | Client validation |
+|:-|:-|
+| `CompareTo` / `CompareToWhen` | Numbers and dates |
+| `EqualTo` | Standard `equalto` rule |
+| `RequiredWhen` / `EmptyWhen` | Yes |
+| `Ms932MaxLength` / `Ms932Length` / `Ms932FixedLength` | Counts ASCII and half-width katakana as 1 byte, and other characters as 2 bytes |
+| Character type attributes | Regular expression |
+| `AnyRequired` / `AnyRequiredWhen` / `ElementRequired` / `MaxCount` / `DuplicateKey` / `Ms932Encodable` | Server only |

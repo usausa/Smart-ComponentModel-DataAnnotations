@@ -1,0 +1,74 @@
+@model SampleForm
+
+@if (ViewData["Valid"] is true)
+{
+    <div class="alert alert-success">送信しました</div>
+}
+
+<form asp-action="Index" method="post">
+    <div class="row g-3">
+        <div class="col-12">
+            <label asp-for="Name" class="form-label"></label>
+            <input asp-for="Name" class="form-control" />
+            <span asp-validation-for="Name" class="text-danger"></span>
+        </div>
+        <div class="col-12">
+            <label asp-for="Kana" class="form-label"></label>
+            <input asp-for="Kana" class="form-control" />
+            <span asp-validation-for="Kana" class="text-danger"></span>
+        </div>
+        <div class="col-12">
+            <label asp-for="Code" class="form-label"></label>
+            <input asp-for="Code" class="form-control" />
+            <span asp-validation-for="Code" class="text-danger"></span>
+        </div>
+        <div class="col-12">
+            <label asp-for="Phone" class="form-label"></label>
+            <input asp-for="Phone" class="form-control" />
+            <span asp-validation-for="Phone" class="text-danger"></span>
+        </div>
+        <div class="col-12">
+            <label asp-for="Mail" class="form-label"></label>
+            <input asp-for="Mail" class="form-control" />
+            <span asp-validation-for="Mail" class="text-danger"></span>
+        </div>
+        <div class="col-12">
+            <label asp-for="ConfirmMail" class="form-label"></label>
+            <input asp-for="ConfirmMail" class="form-control" />
+            <span asp-validation-for="ConfirmMail" class="text-danger"></span>
+        </div>
+        <div class="col-12">
+            <div class="form-check">
+                <input asp-for="UsePeriod" class="form-check-input" />
+                <label asp-for="UsePeriod" class="form-check-label"></label>
+            </div>
+        </div>
+        <div class="col-12 col-md-6">
+            <label asp-for="From" class="form-label"></label>
+            <input asp-for="From" class="form-control" />
+            <span asp-validation-for="From" class="text-danger"></span>
+        </div>
+        <div class="col-12 col-md-6">
+            <label asp-for="To" class="form-label"></label>
+            <input asp-for="To" class="form-control" />
+            <span asp-validation-for="To" class="text-danger"></span>
+        </div>
+        <div class="col-12 col-md-6">
+            <label asp-for="Minimum" class="form-label"></label>
+            <input asp-for="Minimum" class="form-control" />
+            <span asp-validation-for="Minimum" class="text-danger"></span>
+        </div>
+        <div class="col-12 col-md-6">
+            <label asp-for="Maximum" class="form-label"></label>
+            <input asp-for="Maximum" class="form-control" />
+            <span asp-validation-for="Maximum" class="text-danger"></span>
+        </div>
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary w-100">送信</button>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

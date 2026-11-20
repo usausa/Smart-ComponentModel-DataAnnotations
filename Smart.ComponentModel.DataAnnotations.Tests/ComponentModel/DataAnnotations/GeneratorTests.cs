@@ -21,6 +21,9 @@ public sealed class GeneratorTests
 
             public string? Mail { get; set; }
 
+            [EqualTo(nameof(Mail))]
+            public string? ConfirmMail { get; set; }
+
             [Display(Name = "Start")]
             public DateOnly? From { get; set; }
 
@@ -52,13 +55,35 @@ public sealed class GeneratorTests
 
         // Assert
         Assert.Contains("[global::System.Runtime.CompilerServices.ModuleInitializer]", generated, StringComparison.Ordinal);
-        Assert.Contains("RegisterCondition(typeof(global::Test.Form), \"UsePeriod\"", generated, StringComparison.Ordinal);
-        Assert.Contains("RegisterPresence(typeof(global::Test.Form), \"Phone\"", generated, StringComparison.Ordinal);
-        Assert.Contains("RegisterPresence(typeof(global::Test.Form), \"Mail\"", generated, StringComparison.Ordinal);
-        Assert.Contains("RegisterComparison(typeof(global::Test.Form), \"To\", \"From\"", generated, StringComparison.Ordinal);
-        Assert.Contains("Comparer<global::System.DateOnly>.Default.Compare(value, other)", generated, StringComparison.Ordinal);
-        Assert.Contains("RegisterDuplicate(typeof(global::Test.Form), \"Entries\", \"Code\"", generated, StringComparison.Ordinal);
+        Assert.Contains("RegisterMember(typeof(global::Test.Form), \"UsePeriod\", static x => ((global::Test.Form)x).UsePeriod)", generated, StringComparison.Ordinal);
+        Assert.Contains("RegisterMember(typeof(global::Test.Form), \"Phone\"", generated, StringComparison.Ordinal);
+        Assert.Contains("RegisterMember(typeof(global::Test.Form), \"Mail\"", generated, StringComparison.Ordinal);
+        Assert.Contains("RegisterMember(typeof(global::Test.Form), \"From\"", generated, StringComparison.Ordinal);
+        Assert.Contains("RegisterMember(typeof(global::Test.Entry), \"Code\"", generated, StringComparison.Ordinal);
+        Assert.Contains("RegisterComparer(typeof(global::System.DateOnly), static (x, y) => global::System.Collections.Generic.Comparer<global::System.DateOnly>.Default.Compare((global::System.DateOnly)x, (global::System.DateOnly)y))", generated, StringComparison.Ordinal);
         Assert.Contains("RegisterDisplayName(typeof(global::Test.Form), \"From\", static () => \"Start\")", generated, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ValidatedMembersAreNotRead()
+    {
+        // Arrange & Act
+        var generated = GeneratorTestHelper.GetGeneratedSource(Source);
+
+        // Assert
+        Assert.DoesNotContain("\"To\"", generated, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"ConfirmMail\"", generated, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"Entries\"", generated, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SameMemberIsRegisteredOnce()
+    {
+        // Arrange & Act
+        var generated = GeneratorTestHelper.GetGeneratedSource(Source);
+
+        // Assert
+        Assert.Single(generated.Split("RegisterMember(typeof(global::Test.Form), \"Mail\"").Skip(1));
     }
 
     [Fact]
@@ -97,7 +122,7 @@ public sealed class GeneratorTests
     // ------------------------------------------------------------
 
     [Fact]
-    public void ValueTypeIsReadWithoutNullCheck()
+    public void ComparerIsGeneratedOncePerType()
     {
         // Arrange
         const string source =
@@ -112,6 +137,9 @@ public sealed class GeneratorTests
 
                 [CompareTo(CompareToOperation.GreaterThanOrEqual, nameof(Minimum))]
                 public int Maximum { get; set; }
+
+                [CompareTo(CompareToOperation.LessThanOrEqual, nameof(Maximum))]
+                public int? Value { get; set; }
             }
             """;
 
@@ -119,12 +147,12 @@ public sealed class GeneratorTests
         var generated = GeneratorTestHelper.GetGeneratedSource(source);
 
         // Assert
-        Assert.Contains("var value = instance.Maximum;", generated, StringComparison.Ordinal);
-        Assert.Contains("var other = instance.Minimum;", generated, StringComparison.Ordinal);
+        Assert.Single(generated.Split("RegisterComparer(typeof(int)").Skip(1));
+        Assert.Contains("Comparer<int>.Default.Compare((int)x, (int)y)", generated, StringComparison.Ordinal);
     }
 
     [Fact]
-    public void CompositeKeyUsesTuple()
+    public void KeyMembersAreRegisteredOnElementType()
     {
         // Arrange
         const string source =
@@ -139,6 +167,9 @@ public sealed class GeneratorTests
             {
                 [DuplicateKey(nameof(Entry.Code), nameof(Entry.Branch))]
                 public List<Entry>? Entries { get; set; }
+
+                [DuplicateKey(nameof(Value.Code))]
+                public Value?[]? Values { get; set; }
             }
 
             public sealed class Entry
@@ -147,14 +178,22 @@ public sealed class GeneratorTests
 
                 public int Branch { get; set; }
             }
+
+            public struct Value
+            {
+                public int Code { get; set; }
+            }
             """;
 
         // Act
         var generated = GeneratorTestHelper.GetGeneratedSource(source);
+        var errors = GeneratorTestHelper.GetCompilationErrors(source);
 
         // Assert
-        Assert.Contains("HashSet<(string, int)>", generated, StringComparison.Ordinal);
-        Assert.Contains("RegisterDuplicate(typeof(global::Test.Form), \"Entries\", \"Code,Branch\"", generated, StringComparison.Ordinal);
+        Assert.Contains("RegisterMember(typeof(global::Test.Entry), \"Code\"", generated, StringComparison.Ordinal);
+        Assert.Contains("RegisterMember(typeof(global::Test.Entry), \"Branch\"", generated, StringComparison.Ordinal);
+        Assert.Contains("RegisterMember(typeof(global::Test.Value), \"Code\", static x => ((global::Test.Value)x).Code)", generated, StringComparison.Ordinal);
+        Assert.Empty(errors);
     }
 
     [Fact]
@@ -214,7 +253,7 @@ public sealed class GeneratorTests
         var errors = GeneratorTestHelper.GetCompilationErrors(source);
 
         // Assert
-        Assert.Contains("RegisterCondition(typeof(global::Test.Outer.Inner), \"Enabled\"", generated, StringComparison.Ordinal);
+        Assert.Contains("RegisterMember(typeof(global::Test.Outer.Inner), \"Enabled\"", generated, StringComparison.Ordinal);
         Assert.Empty(errors);
     }
 }

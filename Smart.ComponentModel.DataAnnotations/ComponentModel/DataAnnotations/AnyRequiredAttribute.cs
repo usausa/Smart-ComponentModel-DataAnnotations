@@ -6,11 +6,11 @@ using System.Globalization;
 using Smart.ComponentModel.DataAnnotations.Internal;
 
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Struct, AllowMultiple = true)]
-public sealed class AnyRequiredAttribute : ValidationAttribute
+public sealed class AnyRequiredAttribute : ValidationAttribute, IMemberMessageFormatter
 {
     private readonly string[] properties;
 
-    private string? displayNames;
+    private Func<string>[]? displayNames;
 
     public IReadOnlyList<string> Properties => properties;
 
@@ -19,6 +19,10 @@ public sealed class AnyRequiredAttribute : ValidationAttribute
     public override bool RequiresValidationContext => true;
 
     public override object TypeId => this;
+
+    bool IMemberMessageFormatter.AppliesToType => true;
+
+    IReadOnlyList<string> IMemberMessageFormatter.MessageMembers => properties;
 
     public AnyRequiredAttribute(params string[] properties)
         : base(static () => ValidationMessages.AnyRequired)
@@ -33,6 +37,9 @@ public sealed class AnyRequiredAttribute : ValidationAttribute
     public override string FormatErrorMessage(string name) =>
         Format(ErrorMessageString, name);
 #endif
+
+    string IMemberMessageFormatter.FormatMessage(string? format, string name, IReadOnlyList<string> memberDisplayNames) =>
+        String.Format(CultureInfo.CurrentCulture, format ?? ErrorMessageString, name, String.Join(", ", memberDisplayNames));
 
     protected override ValidationResult? IsValid(object? value, ValidationContext validationContext)
     {
@@ -49,16 +56,16 @@ public sealed class AnyRequiredAttribute : ValidationAttribute
         var type = value.GetType();
         foreach (var property in properties)
         {
-            if (ValidationRegistry.GetPresence(type, property)(value, AllowEmptyStrings))
+            if (ValidationHelper.HasValue(ValidationRegistry.GetMember(type, property)(value), AllowEmptyStrings))
             {
                 return ValidationResult.Success;
             }
         }
 
-        displayNames ??= String.Join(", ", properties.Select(x => ValidationHelper.ResolveDisplayName(type, x)));
+        displayNames ??= [.. properties.Select(x => ValidationHelper.ResolveDisplayName(type, x))];
         return new ValidationResult(FormatErrorMessage(validationContext.DisplayName), properties);
     }
 
     private string Format(string format, string name) =>
-        String.Format(CultureInfo.CurrentCulture, format, name, displayNames ?? String.Join(", ", properties));
+        String.Format(CultureInfo.CurrentCulture, format, name, displayNames is null ? String.Join(", ", properties) : String.Join(", ", displayNames.Select(static x => x())));
 }

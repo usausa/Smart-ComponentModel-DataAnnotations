@@ -1,8 +1,10 @@
 <Solution>
   <Folder Name="/Example/">
     <Project Path="Develop/Develop.csproj" />
+    <Project Path="Example.Web/Example.Web.csproj" />
   </Folder>
   <Folder Name="/Library/">
+    <Project Path="Smart.ComponentModel.DataAnnotations.AspNetCore/Smart.ComponentModel.DataAnnotations.AspNetCore.csproj" />
     <Project Path="Smart.ComponentModel.DataAnnotations.Generator/Smart.ComponentModel.DataAnnotations.Generator.csproj" />
     <Project Path="Smart.ComponentModel.DataAnnotations.Japanese/Smart.ComponentModel.DataAnnotations.Japanese.csproj" />
     <Project Path="Smart.ComponentModel.DataAnnotations/Smart.ComponentModel.DataAnnotations.csproj">

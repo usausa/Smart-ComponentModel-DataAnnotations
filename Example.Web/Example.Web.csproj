@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Smart.ComponentModel.DataAnnotations.Generator\Smart.ComponentModel.DataAnnotations.Generator.csproj" OutputItemType="analyzer" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\Smart.ComponentModel.DataAnnotations\Smart.ComponentModel.DataAnnotations.csproj" />
+    <ProjectReference Include="..\Smart.ComponentModel.DataAnnotations.AspNetCore\Smart.ComponentModel.DataAnnotations.AspNetCore.csproj" />
+    <ProjectReference Include="..\Smart.ComponentModel.DataAnnotations.Japanese\Smart.ComponentModel.DataAnnotations.Japanese.csproj" />
+  </ItemGroup>
+
+</Project>

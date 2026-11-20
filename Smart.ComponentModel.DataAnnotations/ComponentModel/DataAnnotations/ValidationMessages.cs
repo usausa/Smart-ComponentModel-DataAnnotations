@@ -16,6 +16,8 @@ internal static class ValidationMessages
 
     public const string GreaterThanOrEqual = "The field {0} must be greater than or equal to {1}.";
 
+    public const string EqualTo = "The field {0} must match {1}.";
+
     public const string MaxCount = "The field {0} must contain at most {1} elements.";
 
     public const string ElementRequired = "The field {0} must contain at least one element and no empty elements.";
