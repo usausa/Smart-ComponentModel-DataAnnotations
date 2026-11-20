@@ -8,6 +8,8 @@ using Smart.ComponentModel.DataAnnotations.Internal;
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
 public sealed class CompareToAttribute : ValidationAttribute, IMemberMessageFormatter
 {
+    private readonly string[] messageMembers;
+
     private Func<string>? otherDisplayName;
 
     public CompareToOperation Operation { get; }
@@ -18,13 +20,14 @@ public sealed class CompareToAttribute : ValidationAttribute, IMemberMessageForm
 
     bool IMemberMessageFormatter.AppliesToType => false;
 
-    IReadOnlyList<string> IMemberMessageFormatter.MessageMembers => [OtherProperty];
+    IReadOnlyList<string> IMemberMessageFormatter.MessageMembers => messageMembers;
 
     public CompareToAttribute(CompareToOperation operation, string otherProperty)
         : base(() => operation.ResolveMessage())
     {
         Operation = operation;
         OtherProperty = otherProperty;
+        messageMembers = [otherProperty];
     }
 
 #if NET11_0_OR_GREATER

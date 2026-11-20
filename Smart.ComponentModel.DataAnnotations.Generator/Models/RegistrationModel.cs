@@ -7,6 +7,11 @@ internal sealed record RegistrationModel(
     EquatableArray<ComparerModel> Comparers,
     EquatableArray<DisplayNameModel> DisplayNames)
 {
+    public static RegistrationModel Empty { get; } = new(
+        EquatableArray<MemberModel>.Empty,
+        EquatableArray<ComparerModel>.Empty,
+        EquatableArray<DisplayNameModel>.Empty);
+
     public bool IsEmpty =>
         (Members.Count == 0) && (Comparers.Count == 0) && (DisplayNames.Count == 0);
 }

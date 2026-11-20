@@ -104,7 +104,7 @@ public sealed class Customer
 ## Source generator
 
 Functions that read the members referenced by the attributes, their display names, and the comparers for `[CompareTo]` are generated from the attribute usages in the project that references the package directly.
-The attributes are applied to properties or record primary constructor parameters, and the diagnostics are listed in [Diagnostics.md](Diagnostics.md).
+The attributes are applied to properties or record primary constructor parameters, and an analyzer in the same package reports the diagnostics listed in [Diagnostics.md](Diagnostics.md).
 
 ## Localization
 

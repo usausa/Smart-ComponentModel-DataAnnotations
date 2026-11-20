@@ -35,6 +35,52 @@ public sealed class DiagnosticTests
     }
 
     [Fact]
+    public void DiagnosticIsReportedAtAttribute()
+    {
+        // Arrange
+        const string source =
+            """
+            using Smart.ComponentModel.DataAnnotations;
+
+            namespace Test;
+
+            public sealed class Form
+            {
+                [CompareTo(CompareToOperation.LessThan, "Unknown")]
+                public int Value { get; set; }
+            }
+            """;
+
+        // Act
+        var diagnostics = GeneratorTestHelper.GetDiagnostics(source);
+
+        // Assert
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("SCD0001", diagnostic.Id);
+        Assert.Equal("CompareTo(CompareToOperation.LessThan, \"Unknown\")", diagnostic.Location.SourceTree!.GetText(TestContext.Current.CancellationToken).ToString(diagnostic.Location.SourceSpan));
+    }
+
+    [Fact]
+    public void Scd0001RecordParameterEmitsDiagnostic()
+    {
+        // Arrange
+        const string source =
+            """
+            using Smart.ComponentModel.DataAnnotations;
+
+            namespace Test;
+
+            public sealed record Form(bool Enabled, [RequiredWhen("Unknown")] string? Name);
+            """;
+
+        // Act
+        var diagnostics = GeneratorTestHelper.GetDiagnosticIds(source);
+
+        // Assert
+        Assert.Equal(["SCD0001"], diagnostics);
+    }
+
+    [Fact]
     public void Scd0001UnknownMemberEmitsDiagnostic()
     {
         // Arrange

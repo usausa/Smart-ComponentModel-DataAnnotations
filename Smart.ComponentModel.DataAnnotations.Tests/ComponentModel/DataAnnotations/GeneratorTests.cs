@@ -117,6 +117,39 @@ public sealed class GeneratorTests
         Assert.Empty(sources);
     }
 
+    [Fact]
+    public void InvalidUsageIsNotRegistered()
+    {
+        // Arrange
+        const string source =
+            """
+            using Smart.ComponentModel.DataAnnotations;
+
+            namespace Test;
+
+            public sealed class Form
+            {
+                public bool Enabled { get; set; }
+
+                [RequiredWhen(nameof(Enabled))]
+                public string? Name { get; set; }
+
+                [CompareTo(CompareToOperation.LessThan, "Unknown")]
+                public int Value { get; set; }
+            }
+            """;
+
+        // Act
+        var generated = GeneratorTestHelper.GetGeneratedSource(source);
+        var diagnostics = GeneratorTestHelper.GetGeneratorDiagnostics(source);
+
+        // Assert
+        Assert.Contains("RegisterMember(typeof(global::Test.Form), \"Enabled\"", generated, StringComparison.Ordinal);
+        Assert.DoesNotContain("Unknown", generated, StringComparison.Ordinal);
+        Assert.DoesNotContain("RegisterComparer", generated, StringComparison.Ordinal);
+        Assert.Empty(diagnostics);
+    }
+
     // ------------------------------------------------------------
     // Shape
     // ------------------------------------------------------------

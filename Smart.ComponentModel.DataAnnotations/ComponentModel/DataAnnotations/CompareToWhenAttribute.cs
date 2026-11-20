@@ -8,6 +8,8 @@ using Smart.ComponentModel.DataAnnotations.Internal;
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
 public sealed class CompareToWhenAttribute : ConditionalValidationAttribute, IMemberMessageFormatter
 {
+    private readonly string[] messageMembers;
+
     private Func<string>? otherDisplayName;
 
     public CompareToOperation Operation { get; }
@@ -16,13 +18,14 @@ public sealed class CompareToWhenAttribute : ConditionalValidationAttribute, IMe
 
     bool IMemberMessageFormatter.AppliesToType => false;
 
-    IReadOnlyList<string> IMemberMessageFormatter.MessageMembers => [OtherProperty];
+    IReadOnlyList<string> IMemberMessageFormatter.MessageMembers => messageMembers;
 
     public CompareToWhenAttribute(string conditionProperty, CompareToOperation operation, string otherProperty)
         : base(conditionProperty, () => operation.ResolveMessage())
     {
         Operation = operation;
         OtherProperty = otherProperty;
+        messageMembers = [otherProperty];
     }
 
 #if NET11_0_OR_GREATER

@@ -8,6 +8,8 @@ using Smart.ComponentModel.DataAnnotations.Internal;
 [AttributeUsage(AttributeTargets.Property | AttributeTargets.Parameter)]
 public sealed class EqualToAttribute : ValidationAttribute, IMemberMessageFormatter
 {
+    private readonly string[] messageMembers;
+
     private Func<string>? otherDisplayName;
 
     public string OtherProperty { get; }
@@ -16,12 +18,13 @@ public sealed class EqualToAttribute : ValidationAttribute, IMemberMessageFormat
 
     bool IMemberMessageFormatter.AppliesToType => false;
 
-    IReadOnlyList<string> IMemberMessageFormatter.MessageMembers => [OtherProperty];
+    IReadOnlyList<string> IMemberMessageFormatter.MessageMembers => messageMembers;
 
     public EqualToAttribute(string otherProperty)
         : base(static () => ValidationMessages.EqualTo)
     {
         OtherProperty = otherProperty;
+        messageMembers = [otherProperty];
     }
 
 #if NET11_0_OR_GREATER

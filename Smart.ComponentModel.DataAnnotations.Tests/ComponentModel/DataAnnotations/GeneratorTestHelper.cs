@@ -1,6 +1,7 @@
 namespace Smart.ComponentModel.DataAnnotations;
 
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Diagnostics;
 
 using Smart.ComponentModel.DataAnnotations.Generator;
 
@@ -14,8 +15,22 @@ internal static class GeneratorTestHelper
         .WithDiagnosticPrefix("SCD")
         .VerifyCompiles();
 
+    public static IReadOnlyList<Diagnostic> GetDiagnostics(string source)
+    {
+        var (_, compilation) = Runner.CreateDriver(source);
+        var diagnostics = compilation
+            .WithAnalyzers([new ValidationAnalyzer()])
+            .GetAnalyzerDiagnosticsAsync()
+            .GetAwaiter()
+            .GetResult();
+        return [.. diagnostics.Where(static x => x.Id.StartsWith("SCD", StringComparison.Ordinal)).OrderBy(static x => x.Location.SourceSpan.Start)];
+    }
+
     public static IReadOnlyList<string> GetDiagnosticIds(string source) =>
-        [.. Runner.VerifyCompiles(false).GetDiagnostics(source).Select(static x => x.Id)];
+        [.. GetDiagnostics(source).Select(static x => x.Id)];
+
+    public static IReadOnlyList<Diagnostic> GetGeneratorDiagnostics(string source) =>
+        Runner.VerifyCompiles(false).Run(source).GeneratorDiagnostics;
 
     public static IReadOnlyList<Diagnostic> GetCompilationErrors(string source) =>
         Runner.VerifyCompiles(false).Run(source).CompilationErrors;
